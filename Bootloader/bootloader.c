@@ -47,7 +47,7 @@ void BL_Print_Message(char *format, ...);
 
 
 /**
- \brief Recieve messages from user 
+ \brief Receive messages from user 
  \details Receive Commands from user using UART 
  \return Return Enum as operation done (BL_ok) or not (BL_NAK)  
  **/
