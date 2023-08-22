@@ -57,7 +57,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-char Message_1[] = "ibrahim ahmed nazzier => %d %%\r\n";
 
 /* USER CODE END 0 */
 
@@ -99,10 +98,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	 HAL_UART_Receive(&huart3,(uint8_t*) Message_1,sizeof(Message_1),HAL_MAX_DELAY);
-	 HAL_UART_Receive(&huart2,(uint8_t*)Message_1,sizeof(Message_1),HAL_MAX_DELAY);
-	 HAL_Delay(500);
-
+	/* Test BL_UART_Host_fetch_command();*/
+	BL_UART_Host_Fetch_Command();
 	/* USER CODE END WHILE */
 		
     /* USER CODE BEGIN 3 */
