@@ -22,10 +22,41 @@
 /******************** Macro Decleration Starts ******************************************************/
 #define BL_ENABLE_UART_DEBUG_MESSAGE		0x00
 #define BL_ENABLE_SPI_DEBUG_MESSAGE 		0x01
+#define BL_ENABLE_CAN_DEBUG_MESSAGE			0x02
+#define BL_DEBUG_METHOD (BL_ENABLE_UART_DEBUG_MESSAGE)
+
+/* Use UART 3 for debugging with HOST */  
+#define BL_DEBUG_UART 						&huart3
+
+/* use UART 2 for communication with HOST */
+#define BL_HOST_COMMUNICATION_UART		    &huart2
+
+/* which communication Protocol used for debugging */
+#define BL_ENABLE_UART_DEBUG_MESSAGE	0x00
+#define BL_ENABLE_SPI_DEBUG_MESSAGE 	0x01
 #define BL_ENABLE_CAN_DEBUG_MESSAGE		0x02
 #define BL_DEBUG_METHOD (BL_ENABLE_UART_DEBUG_MESSAGE)
 
-#define BL_DEBUG_UART 				&huart3
+/* CRC Object */
+#define CRC_ENGINE_OBJ								&hcrc
+
+/* Enable/Disable Debug info for HOST */
+#define DEBUG_INFO_DISABLE						    0
+#define DEBUG_INFO_ENABLE							1
+#define BL_DEBUG_ENABLE								DEBUG_INFO_ENABLE
+
+/* Bootloader Version Info */
+#define CBL_VENDOR_ID						100
+#define	CBL_SW_MAJOR_VERSION				1
+#define	CBL_SW_MINOR_VERSION				2
+#define	CBL_SW_PATCH_VERSION				0
+
+/* CRC Type Size */
+#define CRC_TYPE_SIZE_BYTE					4
+
+
+#define CRC_VERIFICATION_FAILED			0x00
+#define CRC_VERIFICATION_PASSED			0x01
 
 
 #define BL_HOST_BUFFER_RX_LENGTH 			200
@@ -48,6 +79,9 @@
 /* Change Read Out Protection Level */
 #define CBL_CHANGE_ROP_Level_CMD     0x21
 
+/* ACK & NACK values defined by HOST */ 
+#define CBL_SEND_NACK 								0xAB
+#define CBL_SEND_ACK								0XCD
 /******************** Macro Decleration Ends ********************************************************/
 
 
@@ -55,6 +89,7 @@
 /******************** Macro Function Decleration Starts *********************************************/
 
 /******************** Macro Function Decleration Ends ***********************************************/
+
 
 
 
