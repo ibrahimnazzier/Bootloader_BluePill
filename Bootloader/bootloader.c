@@ -33,10 +33,27 @@
 /******************** Data Type Decleration Ends ****************************************************/
 
 /******************* global variables declerations ***************************************************/
+/*Array of uint8_t to receive data from host with length @BL_HOST_BUFFER_RX_LENGTH  */
 static uint8_t BL_Host_Buffer[BL_HOST_BUFFER_RX_LENGTH];
 
+/*Static array with 12 elements holding hex value of the existing commands  */
+static uint8_t Bootloader_Supported_CMDs[12] = {
+    CBL_GET_VER_CMD,
+    CBL_GET_HELP_CMD,
+    CBL_GET_CID_CMD,
+    CBL_GET_RDP_STATUS_CMD,
+    CBL_GO_TO_ADDR_CMD,
+    CBL_FLASH_ERASE_CMD,
+    CBL_MEM_WRITE_CMD,
+    CBL_ED_W_PROTECT_CMD,
+    CBL_MEM_READ_CMD,
+    CBL_READ_SECTOR_STATUS_CMD,
+    CBL_OTP_READ_CMD,
+    CBL_CHANGE_ROP_Level_CMD
+};
+
 /******************* static function declerations ***************************************************/
- 
+ /**************************** utility functions **************************************/
  /**
  \brief send NACK to the host 
  \details Utility function send NACK to the host
@@ -69,15 +86,43 @@ static void Bootloader_Send_Data_To_Host(uint8_t* Host_Buffer, uint32_t Data_len
  \return A macro that inform that CRC verification status
  **/
 static uint8_t Bootloader_CRC_Verify(uint8_t* pData, uint32_t Data_Len, uint32_t Host_CRC);
+/**
+\brief Get_RDP_Level summarise code for gitting RDP in this function
+**/
+static uint8_t CBL_STM32F103_Get_RDP_Level();
 
-
+/************************************* boot loader commands *********************************************************************/
 /**
  \brief First Command for getting Bootloader version 
  \details Recieve command from HOST and Replay with Current bootloader version
  \in uint8_t* Host_Buffer A buffer holds the command information 
  **/
 static void Bootloader_Get_Version(uint8_t* Host_Buffer);
+
+/**
+ \brief Second Command for helping user   
+ \details Recieve command from HOST and Replay with existing commands in the Bootloader
+ \in uint8_t* Host_Buffer A buffer holds the command information 
+ **/
+static void Bootloader_Get_Help(uint8_t* Host_Buffer);
+
+/**
+ \brief Third Command for Getting chip identification number   
+ \details Recieve command from HOST and Replay with chip identification number for the MCU
+ \in uint8_t* Host_Buffer A buffer holds the command information 
+ **/
+static void Bootloader_Get_Chip_Identification_Number(uint8_t *Host_Buffer);
+
+/**
+ \brief forth Command for Getting read protection level of flash    
+ \details Recieve command from HOST and Replay with protection level specified in registers
+ \in uint8_t* Host_Buffer A buffer holds the command information 
+ **/
+ static void Bootloader_Read_Protection_Level(uint8_t *Host_Buffer);
+
 /******************* static function definition ***************************************************/
+
+ /**************************** utility functions **************************************/
 
 void Bootloader_Send_NACK()
 {
@@ -102,7 +147,7 @@ void Bootloader_Send_Data_To_Host(uint8_t* Host_Buffer, uint32_t Data_len)
 }
 				/******************************************************/
 
-int8_t Bootloader_CRC_Verify(uint8_t* pData, uint32_t Data_Len, uint32_t Host_CRC)
+uint8_t Bootloader_CRC_Verify(uint8_t* pData, uint32_t Data_Len, uint32_t Host_CRC)
 {
 uint8_t CRC_Status = CRC_VERIFICATION_FAILED;
 uint32_t MCU_CRC_Calculated = 0;
@@ -128,6 +173,15 @@ if (MCU_CRC_Calculated == Host_CRC)
 return CRC_Status;
 }
 				/******************************************************/
+static uint8_t CBL_STM32F103_Get_RDP_Level()
+{
+	FLASH_OBProgramInitTypeDef FLASH_OBProgram;
+	HAL_FLASHEx_OBGetConfig(&FLASH_OBProgram);
+	return (uint8_t)(FLASH_OBProgram.RDPLevel);
+}
+				/******************************************************/
+
+/************************************* boot loader commands *********************************************************************/
 
 void Bootloader_Get_Version(uint8_t* Host_Buffer)
 {
@@ -160,6 +214,99 @@ else
 
 }
 				/******************************************************/
+
+void Bootloader_Get_Help(uint8_t* Host_Buffer)
+{
+	uint8_t Host_CMD_Packet_Len = 0;
+	uint32_t Host_CRC32 = 0;
+
+#if(BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+	BL_Print_Message("Read the commands supported by bootloader \r\n");
+#endif
+
+	/* extract CRC and packet length sent by the host*/
+	Host_CMD_Packet_Len = Host_Buffer[0] + 1;
+	Host_CRC32 = *((uint32_t*)((Host_Buffer + Host_CMD_Packet_Len)-CRC_TYPE_SIZE_BYTE)); 
+	/* CRC Verification */
+if(CRC_VERIFICATION_PASSED == Bootloader_CRC_Verify((uint8_t*)&Host_Buffer[0],Host_CMD_Packet_Len - 4,Host_CRC32)){
+#if(BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+		BL_Print_Message("CRC Verivication Passed \r\n");
+#endif
+		Bootloader_Send_ACK(12);
+		Bootloader_Send_Data_To_Host((uint8_t*)Bootloader_Supported_CMDs,12);
+	}
+else 
+	{
+#if(BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+		BL_Print_Message("CRC Verivication Faild \r\n");
+#endif
+		Bootloader_Send_NACK();
+	}
+}
+
+							/******************************************************/
+void Bootloader_Get_Chip_Identification_Number(uint8_t *Host_Buffer)
+{
+	uint16_t Host_CMD_Packet_Len = 0;
+  uint32_t Host_CRC32 = 0;
+	uint16_t MCU_Identification_Number = 0;
+#if (BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+	BL_Print_Message("Read the MCU chip identification number \r\n");
+#endif
+	/* Extract the CRC32 and packet length sent by the HOST */
+	Host_CMD_Packet_Len = Host_Buffer[0] + 1;
+	Host_CRC32 = *((uint32_t *)((Host_Buffer + Host_CMD_Packet_Len) - CRC_TYPE_SIZE_BYTE));
+	/* CRC Verification */
+	if(CRC_VERIFICATION_PASSED == Bootloader_CRC_Verify((uint8_t *)&Host_Buffer[0] , Host_CMD_Packet_Len - 4, Host_CRC32)){
+#if (BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+		BL_Print_Message("CRC Verification Passed \r\n");
+#endif
+		/* Get the MCU chip identification number */ 
+		MCU_Identification_Number = (uint16_t)((DBGMCU->IDCODE) & 0x00000FFF);
+		/* Report chip identification number to HOST */
+		Bootloader_Send_ACK(2);
+		Bootloader_Send_Data_To_Host((uint8_t *)&MCU_Identification_Number, 2);
+	}
+	else{
+#if (BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+		BL_Print_Message("CRC Verification Failed \r\n");
+#endif
+		Bootloader_Send_NACK();
+	}
+}
+									/******************************************************/
+static void Bootloader_Read_Protection_Level(uint8_t *Host_Buffer)
+{
+	uint16_t Host_CMD_Packet_Len = 0;
+	uint32_t Host_CRC32 = 0;
+	uint8_t RDP_Level = 0;
+	uint8_t RDP_Level_Error_Status = POR_LEVEL_READ_INVALID;
+
+#if (BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+	BL_Print_Message("Read the Flash Read	Protection out level \r\n");
+#endif
+		/* Extract the CRC32 and packet length sent by the HOST */
+	Host_CMD_Packet_Len = Host_Buffer[0] + 1;
+	Host_CRC32 = *((uint32_t *)((Host_Buffer + Host_CMD_Packet_Len) - CRC_TYPE_SIZE_BYTE));
+	/* CRC Verification */
+	if(CRC_VERIFICATION_PASSED == Bootloader_CRC_Verify((uint8_t *)&Host_Buffer[0] , Host_CMD_Packet_Len - 4, Host_CRC32)){
+#if (BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+		BL_Print_Message("CRC Verification Passed \r\n");
+#endif
+		Bootloader_Send_ACK(1);
+	/*Reading Protecton out level  */
+		RDP_Level = CBL_STM32F103_Get_RDP_Level();
+				/*Reading Valid Protecton out level  */
+		Bootloader_Send_Data_To_Host((uint8_t*)&RDP_Level,1);
+	}
+	else{
+#if (BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+		BL_Print_Message("CRC Verification Failed \r\n");
+#endif
+	Bootloader_Send_NACK();	
+	}
+}
+
 
 /******************** Software Interfaces Decleration Starts ****************************************/
 /**
@@ -238,7 +385,7 @@ BL_Status BL_UART_Host_Fetch_Command(void){
 			switch(BL_Host_Buffer[1])
 				{		
 					case CBL_GET_VER_CMD:
-						static void Bootloader_Get_Version(uint8_t* Host_Buffer);
+						Bootloader_Get_Version(BL_Host_Buffer);
 						Status = BL_OK;
 						break;
 				
@@ -247,6 +394,7 @@ BL_Status BL_UART_Host_Fetch_Command(void){
 						break;
 					
 					case CBL_GET_CID_CMD:
+						Bootloader_Get_Chip_Identification_Number(BL_Host_Buffer);
 						BL_Print_Message("CBL_GET_CID_CMD \r\n");
 
 						break;

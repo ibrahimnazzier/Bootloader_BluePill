@@ -42,11 +42,11 @@
 
 /* Enable/Disable Debug info for HOST */
 #define DEBUG_INFO_DISABLE						    0
-#define DEBUG_INFO_ENABLE							1
+#define DEBUG_INFO_ENABLE									1
 #define BL_DEBUG_ENABLE								DEBUG_INFO_ENABLE
 
 /* Bootloader Version Info */
-#define CBL_VENDOR_ID						100
+#define CBL_VENDOR_ID							100
 #define	CBL_SW_MAJOR_VERSION				1
 #define	CBL_SW_MINOR_VERSION				2
 #define	CBL_SW_PATCH_VERSION				0
@@ -80,8 +80,13 @@
 #define CBL_CHANGE_ROP_Level_CMD     0x21
 
 /* ACK & NACK values defined by HOST */ 
-#define CBL_SEND_NACK 								0xAB
+#define CBL_SEND_NACK 							0xAB
 #define CBL_SEND_ACK								0XCD
+
+	/*CBL_GET_RDP_STATUS_CMD*/
+	#define POR_LEVEL_READ_INVALID	0x00
+	#define POR_LEVEL_READ_VALID		0x01
+
 /******************** Macro Decleration Ends ********************************************************/
 
 
