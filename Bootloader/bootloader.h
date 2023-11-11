@@ -84,9 +84,33 @@
 #define CBL_SEND_ACK								0XCD
 
 	/*CBL_GET_RDP_STATUS_CMD*/
-	#define POR_LEVEL_READ_INVALID	0x00
-	#define POR_LEVEL_READ_VALID		0x01
+#define POR_LEVEL_READ_INVALID	0x00
+#define POR_LEVEL_READ_VALID		0x01
 
+	/* CBL_GO_TO_ADDR_CMD */
+#define ADDRESS_IS_VALID 							0X01
+#define ADDRESS_IS_INVALID 						0X00
+ 
+ /* sram range of adresses */ 
+
+#define STM32f103_SRAM_SIZE							(20*1024)
+#define STM32f103_FLASH_SIZE						(64*1024)
+
+#define STM32f103_SRAM_END							(SRAM_BASE + STM32f103_SRAM_SIZE)
+#define STM32f103_FLASH_END							(FLASH_BASE + STM32f103_FLASH_SIZE)
+
+		/* erase command defines */
+
+#define CBL_FLASH_MAX_SECTOR_NUMBER 		0x40
+
+#define INVALID_SECTOR_NUMBER 					0X01
+#define VALID_SECTOR_NUMBER 						0X02
+#define UNSUCCESSFUL_ERASE 							0x02
+#define SUCCESSFUL_ERASE 								0x03
+
+#define BL_FLASH_MASS_ERASE							0XFF
+
+#define HAL_SUCCESSFUL_ERASE 						0xFFFFFFFF
 /******************** Macro Decleration Ends ********************************************************/
 
 
@@ -104,6 +128,10 @@ BL_NACk = 0,
 BL_OK
 }BL_Status;
 
+/* typedef for void pointer for function that take void */
+typedef void (*pMainApp)(void);
+
+typedef void (*Jump_Ptr)(void);
 /******************** Data Type Decleration Ends ****************************************************/
 
 
