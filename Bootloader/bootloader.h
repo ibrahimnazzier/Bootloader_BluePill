@@ -111,6 +111,10 @@
 #define BL_FLASH_MASS_ERASE							0XFF
 
 #define HAL_SUCCESSFUL_ERASE 						0xFFFFFFFF
+
+/*  CBL_MEM_WRITE_CMD */
+#define FLASH_PAYLOAD_WRITE_FAILED 		0x00
+#define FLASH_PAYLOAD_WRITE_PASSED 		0x01 
 /******************** Macro Decleration Ends ********************************************************/
 
 

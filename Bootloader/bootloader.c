@@ -112,6 +112,16 @@ static uint8_t HOST_Jump_Address_Verification( uint32_t jump_address);
  \return INVALID_SECTOR_NUMBER macro if sector number is out of range
  **/
 static uint8_t Perform_Flash_Erase(uint8_t Sector_Number, uint8_t Number_Of_Sector);
+  /**
+ \brief utility function for writing specific address 
+ \details This utility take the address of first 16 byte of payload and write that sequentially in memory
+ \in uint16_t* Host_payload pointer to the address of the first 16 byte in payload
+ \in uint32_t Payload_Start_address holds the address of the first 16 byte 
+ \in uint16_t Payload_Len size of payload in bytes
+ \return FLASH_PAYLOAD_WRITE_PASSED macro to specify if write process done successfully  
+ \return FLASH_PAYLOAD_WRITE_FAILED macro to specify if write process faild
+ **/
+static uint8_t Flash_Memory_Write_Payload(uint16_t* Host_payload, uint32_t Payload_Start_address, uint16_t Payload_Len);
 
 /************************************* boot loader commands *********************************************************************/
 /**
@@ -157,8 +167,14 @@ static void Bootloader_Get_Chip_Identification_Number(uint8_t *Host_Buffer);
  \in uint8_t* Host_Buffer A buffer holds the command information 
  **/
 static void Bootloader_Erase_Flash(uint8_t *Host_Buffer);
-
-
+ 
+ /**
+ \brief fifth Command for writing flash at specific address      
+ \details Recieve command from HOST specified address to writne in specific address   
+ \details Writing recieved data from payload to specific memory address 
+ \in uint8_t* Host_Buffer A buffer holds the command information 
+ **/
+void Bootloader_Memory_Write(uint8_t* Host_Buffer);
 /******************* static function definition ***************************************************/
 
  /**************************** utility functions **************************************/
@@ -318,6 +334,51 @@ static uint8_t Perform_Flash_Erase(uint8_t Sector_Number, uint8_t Number_Of_Sect
 	}
 	return Sector_Validity_Status;
 }
+
+static uint8_t Flash_Memory_Write_Payload(uint16_t* Host_payload, uint32_t Payload_Start_address, uint16_t Payload_Len)
+{
+	HAL_StatusTypeDef HAL_Status = HAL_ERROR;
+	uint8_t Flash_Payload_Write_Status = FLASH_PAYLOAD_WRITE_FAILED;
+	uint16_t Payload_Counter = 0;
+	
+	/* Unlock the flash control register access */ 
+	HAL_Status = HAL_FLASH_Unlock();
+		if(HAL_Status != HAL_OK)
+		{
+			Flash_Payload_Write_Status = FLASH_PAYLOAD_WRITE_FAILED;
+		}
+		else 
+		{
+			for(int PL_add = 0,Payload_Counter = 0; Payload_Len/2 > Payload_Counter; PL_add+=2,Payload_Counter++)
+			{
+				HAL_Status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD,(Payload_Start_address + PL_add), Host_payload[Payload_Counter]);
+				if(HAL_Status != HAL_OK)
+				{
+					Flash_Payload_Write_Status = FLASH_PAYLOAD_WRITE_FAILED;
+					break;
+				}
+				Flash_Payload_Write_Status = FLASH_PAYLOAD_WRITE_PASSED;
+			}	
+		}
+	if ((FLASH_PAYLOAD_WRITE_PASSED == Flash_Payload_Write_Status) && (HAL_OK == HAL_Status))
+	{
+	/* Lock the flash control register access */ 
+		HAL_Status = HAL_FLASH_Lock();
+		if(HAL_Status != HAL_OK)
+		{
+			Flash_Payload_Write_Status = FLASH_PAYLOAD_WRITE_FAILED;
+		}
+		else{
+			Flash_Payload_Write_Status = FLASH_PAYLOAD_WRITE_PASSED;
+		}
+	}
+	else 
+	{
+		Flash_Payload_Write_Status = FLASH_PAYLOAD_WRITE_FAILED;
+	}
+	return Flash_Payload_Write_Status;
+}
+
 /************************************* boot loader commands *********************************************************************/
 
 void Bootloader_Get_Version(uint8_t* Host_Buffer)
@@ -539,6 +600,73 @@ else{
 		Bootloader_Send_NACK();
 	}
 }
+
+void Bootloader_Memory_Write(uint8_t* Host_Buffer)
+{
+	uint16_t Host_CMD_Packet_Len = 0;
+  uint32_t Host_CRC32 = 0;
+	uint32_t HOST_Address = 0;
+	uint8_t Payload_Len = 0;
+	uint8_t Address_Verification = ADDRESS_IS_INVALID;
+	uint8_t Flash_Payload_Write_Status = FLASH_PAYLOAD_WRITE_FAILED;
+	
+#if(BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+	BL_Print_Message("Write data to different memories of the MCU \r\n");
+#endif
+							/* extract CRC and packet length sent by the host*/
+	Host_CMD_Packet_Len = Host_Buffer[0] + 1;
+	Host_CRC32 = *((uint32_t*)((Host_Buffer + Host_CMD_Packet_Len)-CRC_TYPE_SIZE_BYTE)); 
+											/* CRC Verification */
+if(CRC_VERIFICATION_PASSED == Bootloader_CRC_Verify((uint8_t*)&Host_Buffer[0],Host_CMD_Packet_Len - 4,Host_CRC32)){
+#if(BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+		BL_Print_Message("CRC Verivication Passed \r\n");
+#endif
+		/* send ack to host */ 
+		Bootloader_Send_ACK(1);
+		/* Extract the start address from the Host packet */
+		HOST_Address = *((uint32_t*)(&Host_Buffer[2]));
+#if (BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+		BL_Print_Message("HOST_Address = 0x%X \r\n", HOST_Address);
+#endif
+		/* Extract the Payload length from the Host packet */
+		Payload_Len = *((uint32_t*)(&Host_Buffer[6]));
+		Address_Verification = HOST_Jump_Address_Verification(HOST_Address);
+		
+
+		if (ADDRESS_IS_VALID == Address_Verification)
+		{
+			Flash_Payload_Write_Status = Flash_Memory_Write_Payload((uint16_t*)&Host_Buffer[7],HOST_Address,Payload_Len);
+			
+			if(FLASH_PAYLOAD_WRITE_PASSED == Flash_Payload_Write_Status)
+			{
+				/* Report Payload write passedd */
+				Bootloader_Send_Data_To_Host((uint8_t*)&Flash_Payload_Write_Status,1);
+#if (BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+				BL_Print_Message("Payload Valid \r\n");
+#endif
+			}
+			else {
+				/* Report Payload write faild */
+				Bootloader_Send_Data_To_Host((uint8_t*)&Flash_Payload_Write_Status,1);
+#if (BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+				BL_Print_Message("Payload InValid \r\n");
+#endif
+			}
+		}
+		else 
+		{
+			Bootloader_Send_Data_To_Host((uint8_t*)&Address_Verification,1);
+			
+		}
+	}
+else{
+#if (BL_DEBUG_ENABLE == DEBUG_INFO_ENABLE)
+		BL_Print_Message("CRC Verification Failed \r\n");
+#endif
+		Bootloader_Send_NACK();
+	}
+}
+
 /******************** Software Interfaces Decleration Starts ****************************************/
 /**
  \brief Print Message over UART
@@ -647,7 +775,8 @@ BL_Status BL_UART_Host_Fetch_Command(void){
 						break;	
 					
 					case CBL_MEM_WRITE_CMD:
-						BL_Print_Message("CBL_MEM_WRITE_CMD \r\n");
+						Bootloader_Memory_Write(BL_Host_Buffer);
+						Status = BL_OK;					
 						break;
 					
 					case CBL_ED_W_PROTECT_CMD:
