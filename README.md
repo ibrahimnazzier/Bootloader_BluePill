@@ -16,3 +16,20 @@ The bootloader supports the following commands:
 
 This project is designed to be a starting point for anyone looking to understand the workings of a bootloader for the ARM STM32F103C8 MCU. It provides a solid foundation that can be built upon to create more complex and feature-rich bootloaders. Enjoy exploring and happy coding! 🚀.
 
+# Components Used
+
+The following components are used in this project:
+
+1. **STM32f103C8 ARM MCU**: The main microcontroller unit where the bootloader resides and operates.
+2. **ST-link V2**: Used for debugging and programming the MCU.
+3. **2 * FTDI Ft232rl**: One is used for receiving commands from the host, and the other is used for serial debugging.
+4. **Host Computer**: Runs a Python script to interact with the bootloader.
+
+# Operation
+
+The operation of the bootloader involves the following steps:
+
+1. **UART Configuration**: Two UART ports are configured to connect with the FTDI modules. One port is used for debugging, and the other is used for sending commands to the STM32 MCU.
+2. **Power Connection**: The 5V source of the FTDI modules is connected to the 5V source of the STM32 MCU.
+3. **Ground Connection**: The ground of the FTDI modules is connected to the ground of the STM32 MCU.
+4. **Host Connection**: The FTDI modules are connected to the host computer using a USB port. The host computer runs a Python script to send commands to the STM32 MCU through the FTDI module.
